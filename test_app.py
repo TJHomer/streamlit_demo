@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+from PIL import Image
+
+image = "https://knoxmakers.org/wp-content/uploads/2017/06/logo_invert.png"
 
 st.title('Uber pickups in NYC')
 
@@ -34,3 +37,5 @@ filtered_data = data[data[DATE_COLUMN].dt.hour == hour_to_filter]
 
 st.subheader('Map of all pickups at %s:00' % hour_to_filter)
 st.map(filtered_data)
+
+st.image(image, caption='Sunrise by the mountains')
