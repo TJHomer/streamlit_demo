@@ -2,40 +2,64 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from PIL import Image
+import leafmap.foliumap as leafmap
 
-image = "https://knoxmakers.org/wp-content/uploads/2017/06/logo_invert.png"
 
-st.title('Uber pickups in NYC')
 
-DATE_COLUMN = 'date/time'
-DATA_URL = ('https://s3-us-west-2.amazonaws.com/'
-            'streamlit-demo-data/uber-raw-data-sep14.csv.gz')
+st.set_page_config(layout="wide")
 
-@st.cache_data
-def load_data(nrows):
-    data = pd.read_csv(DATA_URL, nrows=nrows)
-    lowercase = lambda x: str(x).lower()
-    data.rename(lowercase, axis='columns', inplace=True)
-    data[DATE_COLUMN] = pd.to_datetime(data[DATE_COLUMN])
-    return data
+def get_layers(url):
+    options = leafmap.get_wms_layers(url)
+    return options
 
-data_load_state = st.text('Loading data...')
-data = load_data(10000)
-data_load_state.text("Done! (using st.cache_data)")
 
-if st.checkbox('Show raw data'):
-    st.subheader('Raw data')
-    st.write(data)
+st.title("Select a Basemap")
 
-st.subheader('Number of pickups by hour')
-hist_values = np.histogram(data[DATE_COLUMN].dt.hour, bins=24, range=(0,24))[0]
-st.bar_chart(hist_values)
 
-# Some number in the range 0-23
-hour_to_filter = st.slider('hour', 0, 23, 17)
-filtered_data = data[data[DATE_COLUMN].dt.hour == hour_to_filter]
+col1, col2 = st.columns([4, 1])
+options = list(leafmap.basemaps.keys())
+index = options.index("OpenTopoMap")
 
-st.subheader('Map of all pickups at %s:00' % hour_to_filter)
-st.map(filtered_data)
+with col2:
+    
+    selection = st.radio("Use a preloaded basemap or enter a url", 
+                         ("Preloaded", "URL"))
+    
 
-st.image(image)
+    if selection == "Preloaded":
+        basemap = st.selectbox("Select a basemap:", options, index)
+    
+    if selection == "URL":
+        url = st.text_input(
+        "Enter a WMS URL:", value="https://services.terrascope.be/wms/v2"
+        )
+        empty = st.empty()
+        default = None
+
+        if url:
+            options = get_layers(url)
+    
+            layers = empty.multiselect(
+                "Select WMS layers to add to the map:", options, default=default)
+    
+
+    st.markdown("""
+    Go to https://apps.nationalmap.gov/services to find some WMS URLs if needed.
+    """)
+
+with col1:
+    if selection == "Preloaded":
+        m = leafmap.Map(locate_control=True, latlon_control=True, draw_export=True, minimap_control=True)
+        m.add_basemap(basemap)
+    
+    if selection == "URL":
+        m = leafmap.Map(center=(36.3, 0), zoom=2)
+        if layers is not None:
+            for layer in layers:
+                m.add_wms_layer(
+                    url, layers=layer, name=layer, attribution=" ", transparent=True
+                )
+
+
+    m.to_streamlit(height=700)
+
